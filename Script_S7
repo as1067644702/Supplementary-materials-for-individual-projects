@@ -1,0 +1,117 @@
+#Prepare a file containing only candidate windows（ODN.txt）
+#Don’t include the --fst-window-size and --fst-window-step arguments, vcftools prints Fst for individual SNPs（ODN_nosizestep.weir.fst）
+vcftools --gzvcf freddie_set.vcf.gz  --max-missing 0.8  --maf 0.05 --weir-fst-pop LAB_populations.txt --weir-fst-pop ODN_populations.txt
+#The column names in each file are named according to the table headers required in the following scripts
+#Draw local Fst plots
+gene_info <- read.table("C_excelsa_genes.bed", header = TRUE)
+
+candidates <- read.table("ODN.txt", header = TRUE)
+
+snp_fst <- read.table("ODN_nosizestep.weir.fst", header = TRUE)
+
+library(ggplot2)
+
+for (i in 1:nrow(candidates)) {
+  
+  candidate <- candidates[i, ]
+  
+  
+  
+  # filter gene information for genes that overlap with the candidate area
+  
+  genes_overlap <- gene_info[(gene_info$CHROM == candidate$CHROM & gene_info$END >= candidate$BIN_START &
+                                
+                                gene_info$START <= candidate$BIN_END), ]
+  
+  
+  
+  # iterate through overlapping genes and draw plots
+  
+  if(nrow(genes_overlap) == 0) next
+  
+  for (j in 1:nrow(genes_overlap)) {
+    
+    gene <- genes_overlap[j, ]
+    
+    
+    
+    # check the gene overlaps with the candidate windows
+    
+    if (gene$START <= candidate$BIN_END && gene$END >= candidate$BIN_START) {
+      
+      # subset the SNP Fst values within the gene's region
+      
+      gene_snps <- snp_fst[(snp_fst$CHROM == gene$CHROM &
+                              
+                              snp_fst$POS >= (gene$START - 25000) &
+                              
+                              snp_fst$POS <= (gene$END + 25000)), ]
+      
+      
+      
+      # check SNPs in the gene
+      
+      if (nrow(gene_snps) > 0) {
+        
+        # create AFD plots
+        
+        p <- ggplot() +
+          
+          # plot shaded area （gene area）
+          
+          geom_rect(aes(xmin = gene$START, xmax = gene$END, ymin = -Inf, ymax = Inf),
+                    
+                    fill = "gray80", alpha = 0.5) +
+          
+          # plot SNPs
+          
+          geom_point(data = gene_snps, aes(x = POS, y = WEIR_AND_COCKERHAM_FST), color = "blue") +
+          
+          # draw arrowsgene (gene direction)
+          geom_segment(aes(x = ifelse(gene$DIR == "+", gene$START, gene$END), 
+                           y = 1, 
+                           xend = ifelse(gene$DIR == "+", gene$END, gene$START), 
+                           yend = 1),
+                       arrow = arrow(length = unit(0.2, "cm")), color = "black")+
+          
+          # chromosome label
+          
+          annotate("text", x = mean(gene$START, gene$END), y = 1, label = gene$NAME,
+                   
+                   vjust = -1.5) +
+          
+         
+          
+          xlab(gene$CHROM) +
+          
+          ylab("Fst Value") +
+          
+          
+          
+          xlim(gene$START - 25000, gene$END + 25000) +
+          
+          scale_x_continuous(breaks = seq(gene$START - 25000, gene$END + 25000, 5000),
+                             
+                             minor_breaks = NULL)
+        
+        p <- p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+        
+        # save plots
+        
+        plot_filename <- paste0("C:/Users/86176/Documents/Mav_Plots/ODNRE/", gene$NAME, "_AFD_plot.png")
+        
+        ggsave(plot_filename, plot = p)
+        
+        
+        
+        # done
+        
+        cat("Saved", plot_filename, "\n")
+        
+      }
+      
+    }
+    
+  }
+  
+}
