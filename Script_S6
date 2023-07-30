@@ -1,0 +1,62 @@
+#1. Select the top 1% data information of each population to create a new file(example:ODN.txt)
+
+#2. Filter out rows with snp greater than 10 from the table
+awk '$4 >= 10 { print $0 }' ODN.txt > ODN_snp10.txt
+
+#3. Organize into three columns CHR START END
+
+#4. The format is a tab-delimited file with zero-indexing (i.e., first position in a chromosome is zero): chromosome, window start site - 1, window end site. 
+
+#!/bin/bash
+
+input_file="/gpfs01/home/alyxq8/GS_vcftools/ODN_LAB/ODN_fstout.txt"
+output_file="/gpfs01/home/alyxq8/GS_vcftools/ODN_LAB/ODN_outlier_windows.bed"
+
+while IFS=$'\t' read -r chromosome start stop; do
+    echo -e "$chromosome\t$((start - 1))\t$stop"
+done < "$input_file" > "$output_file"
+
+#5. sort files
+sort -k1,1 -k2,2n ODN_outlier_windows.bed > ODN_outlier_windows_sorted.bed
+sort -k1,1 -k2,2n C_excelsa_genes.bed > C_excelsa_genes_sorted.bed
+
+#6. look at genes that are close by
+bedtools closest -a C_excelsa_genes_sorted.bed -b ODN_outlier_windows_sorted.bed -D a >  ODN_outlier_genes.bed
+
+#7. Filter out rows whose absolute value of distance is less than 1000.
+awk 'function abs(x) { return (x < 0 ? -x : x) }
+{
+    if (abs($10) < 1000) {
+        print $0
+    }
+}' ODN_outlier_genes.bed > ODN_filtered_outlier_genes.bed
+
+awk '$1 ~ /^Cexcelsa_scaf_[1-6]$/ { print $0 }' ODN_filtered_outlier_genes.bed > ODN_final_outlier_genes.bed
+
+#8. Use the same method to align all windows of a population with the provided genome-wide information file to generate a new file(example:ODN_final_all_genes.bed)
+
+#9. Run GO enrichment analysis on RStudio
+library(topGO)
+
+go <- readMappings(file="C_excelsa_GO_restrictive.txt")
+
+# Read gene lists for all and outlier windows
+# Take only those < 1 kb away from genes
+dip <- read.table("ODN_final_all_genes.bed")
+dip <- subset(dip, abs(V10) <= 1000)
+dip_outl <- read.table("ODN_final_outlier_genes.bed")
+dip_outl <- subset(dip_outl, abs(V10) <= 1000)
+
+# Make gene lists for GO enrichment
+# As a background, we're only using GO terms from genes < 1 kb all windows
+dip_go <- go[intersect(names(go),unique(dip$V4))]
+dip_names <- names(dip_go)
+# Outlier list
+dip_glist <- factor(as.integer(dip_names %in% dip_outl$V4))
+names(dip_glist) <- dip_names
+
+# Run enrichment test
+go_data <- new("topGOdata", ontology="BP", allGenes=dip_glist, annot=annFUN.gene2GO, gene2GO=dip_go, nodeSize=5)
+res <- runTest(go_data, statistic = "fisher")
+res
+GenTable(go_data, classicFisher=res, topNodes=15)
