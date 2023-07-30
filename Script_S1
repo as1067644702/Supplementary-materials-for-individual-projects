@@ -1,0 +1,50 @@
+#Remove sites with > 20% missing data and minor allele frequency < 0.05
+
+#plink version 1.90b6.21(kept 1553967 out of a possible 3781173 Sites)
+
+plink --vcf freddie_set.vcf.gz \
+      --maf 0.05 \
+      --geno 0.2 \
+      --out freddie_set \
+      --allow-extra-chr \
+      --recode vcf-iid
+
+#vcftools version 0.1.16(kept 1560583 out of a possible 3781173 Sites)
+
+gzip -d freddie_set.vcf.gz
+
+vcftools --vcf freddie_set.vcf \
+         --missing-site  \
+         --out output
+
+vcftools --vcf freddie_set.vcf \ 
+         --recode \
+         --out dataset_after.vcf \ 
+         --max-missing 0.8 \
+         --maf 0.05
+
+
+
+#Create plink files from vcf file and do linkage pruning(1529624 of 1560583 variants removed)
+
+plink --vcf dataset.vcf \
+      --make-bed \
+      --out freddie_set \ 
+      --allow-extra-chr \
+      --double-id \
+      --set-missing-var-ids @:#
+
+#--indep-pairwise <window size>['kb'] <step size (variant ct)> <r^2 threshold>
+#Produce a pruned subset of markers that are in approximate linkage equilibrium.
+#Write the IDs to plink.prune.in (and the IDs of all excluded variants to plink.prune.out).
+
+plink --bfile freddie_set \
+      --indep-pairwise 100 50 0.1 \
+      --allow-extra-chr
+
+plink --bfile freddie_set \
+      --extract plink.prune.in \
+      --recode 12 \
+      --double-id \
+      --allow-extra-chr \
+      --out freddie_set_admix
