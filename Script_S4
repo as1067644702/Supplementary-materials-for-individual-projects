@@ -1,0 +1,7 @@
+#Generating a Phylogenetic Tree
+
+conda create --prefix /gpfs01/home/alyxq8/iqtree
+source activate /gpfs01/home/alyxq8/iqtree
+conda install -c bioconda iqtree#2.2.2.3
+
+iqtree -s tree_data.phy
