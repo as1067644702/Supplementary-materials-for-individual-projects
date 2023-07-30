@@ -1,0 +1,18 @@
+#Genome scanning(Fst)
+
+vcftools --gzvcf freddie_set.vcf.gz \
+         --max-missing 0.8 \
+		 --maf 0.05 \
+		 --weir-fst-pop LAB_populations.txt \
+		 --weir-fst-pop NEN_populations.txt \
+		 --fst-window-size 5000 \
+		 --fst-window-step 2500 \
+		 
+
+# Make table with 3 columns: add header 1.CHR 2.BP (BIN_START) 3.P (WEIGHTED_FST weighted Fst)
+awk  -F '\t'  '{print $1"\t"$2"\t"$5}'   JOR_LAB.windowed.weir.fst > JOR_LAB.windowed.weir-125.fst
+#Draw Manhattan (Fst) plots
+library('qqman')
+mydata2<-read.table("JOR_LAB.windowed.weir-125.fst",head=T)
+color_set <- c("#8DA0CB","#E78AC3","#A6D854","#FFD92F","#E5C494","#66C2A5","#FC8D62")
+manhattan(mydata2,col=color_set,logp = F,xlab='Chromosome(JOR_LAB)',ylab='Fst',genomewideline = 0.322379)
