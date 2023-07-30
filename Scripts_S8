@@ -1,0 +1,14 @@
+d <- read.table(gzfile("thaliana.blast.gz"))
+
+# filter hits base on e-value
+d <- subset(d, V11 < 1e-5)
+
+# remove the content after the "." in the name
+d$id <- sapply(d$V1, function(x){unlist(strsplit(x,".",fixed=T))[1]})
+d$genename <- sapply(d$V2, function(x){unlist(strsplit(x,".",fixed=T))[1]})
+
+#show possible homologous gene names
+genes <- subset(d, id == "g25937")
+column_14 <- genes[, 14]
+unique_column_14 <- unique(column_14)
+cat(paste(unique_column_14, collapse = " "))
