@@ -1,0 +1,41 @@
+# Install RAiSD
+mkdir RAiSD
+cd RAiSD
+wget https://github.com/alachins/raisd/archive/master.zip
+unzip master.zip
+cd raisd-master
+./install-RAiSD-GSL.sh
+https://ftp.gnu.org/gnu/gsl/
+tar -xvzf gsl-latest.tar.gz
+curpath=$(pwd)
+mkdir gsl
+cd gsl-2.7.1
+./configure --prefix=$curpath/gsl && make && make install
+cd ..
+rm Makefile
+cp makefiles/Makefile.GSL Makefile
+make clean
+make
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/gpfs01/home/alyxq8/RAiSD/raisd-master/gsl/lib
+
+# first attempt at scanning
+vcftools --vcf after_filter.vcf --keep ODN_populations.txt --recode --out output_ODN
+vcftools --vcf after_filter.vcf --keep LAB_populations.txt --recode --out output_LAB
+vcftools --vcf after_filter.vcf --keep NEN_populations.txt --recode --out output_NEN
+vcftools --vcf after_filter.vcf --keep JOR_populations.txt --recode --out output_JOR
+
+vcftools --vcf output_NEN.vcf --chr Cexcelsa_scaf_1 --recode --out JOR_chr1
+
+/gpfs01/home/alyxq8/RAiSD/raisd-master/RAiSD -I JOR_chr1.recode.vcf -R -f -M 1 -y 2 -n JOR.chr1
+awk 'NR > 1 {OFS="\t"; print “Cexcelsa_scaf_1",$2,$3,$7}' RAiSD_Report.JOR.chr1 > raisd_JOR_chr1.txt
+
+#Second scanning (exclude abnormal areas)
+                                       
+/gpfs01/home/alyxq8/RAiSD/raisd-master/RAiSD -I LAB_chr1.recode.vcf -X lab_exclude.txt -R -f -M 1 -y 2 -n LAB.chr1
+
+awk 'NR > 1 {OFS="\t"; print "1",$1,$4*$5*$6}' RAiSD_Report.LAB.chr1 > lab.raisd
+awk 'NR > 1 {OFS="\t"; print "2",$1,$4*$5*$6}' RAiSD_Report.LAB.chr2 >> lab.raisd
+awk 'NR > 1 {OFS="\t"; print "3",$1,$4*$5*$6}' RAiSD_Report.LAB.chr3 >> lab.raisd
+awk 'NR > 1 {OFS="\t"; print "4",$1,$4*$5*$6}' RAiSD_Report.LAB.chr4 >> lab.raisd
+awk 'NR > 1 {OFS="\t"; print "5",$1,$4*$5*$6}' RAiSD_Report.LAB.chr5 >> lab.raisd
+awk 'NR > 1 {OFS="\t"; print "6",$1,$4*$5*$6}' RAiSD_Report.LAB.chr6 >> lab.raisd
